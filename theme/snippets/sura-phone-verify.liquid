@@ -1,0 +1,76 @@
+{% comment %}
+  sura-phone-verify
+  -----------------
+  Phone verification for the Sura Books registration form.
+
+  Drop it inside the {% form 'create_customer' %} block on templates/customers/
+  register.liquid, after the email field:
+
+      {% render 'sura-phone-verify', form_id: 'sura-register' %}
+
+  It holds the form's submit button disabled until the number is verified. The
+  server-side check is the customers/create webhook — this is the courtesy
+  layer, not the enforcement layer.
+
+  Accepts:
+    form_id  - id of the surrounding form (used to find the submit button)
+    proxy    - App Proxy path, defaults to /apps/sura-notify
+{% endcomment %}
+
+{{ 'sura-phone-verify.css' | asset_url | stylesheet_tag }}
+<script src="{{ 'sura-phone-verify.js' | asset_url }}" defer></script>
+
+<sura-phone-verify
+  class="sura-verify"
+  data-form="{{ form_id | default: 'create_customer' }}"
+  data-proxy="{{ proxy | default: '/apps/sura-notify' }}"
+>
+  <div class="sura-verify__field">
+    {% comment %}
+      Plain string, not a `t` filter. Shopify's `t` has no default argument —
+      a missing key renders the literal "Translation missing: en.…". If the
+      store is multilingual, add the key to locales/*.json and swap this for
+      {{ 'customer.register.phone' | t }}.
+    {% endcomment %}
+    <label class="sura-verify__label" for="sura-verify-phone">Mobile number</label>
+    <div class="sura-verify__row">
+      <span class="sura-verify__prefix" aria-hidden="true">+91</span>
+      {% comment %}
+        No `name` attribute: this field is not posted to Shopify. The classic
+        create_customer form accepts only customer[...] params, and the server
+        side of verification is the customers/create webhook, not this input.
+      {% endcomment %}
+      <input
+        id="sura-verify-phone"
+        class="sura-verify__input"
+        type="tel"
+        inputmode="numeric"
+        autocomplete="tel-national"
+        maxlength="10"
+        pattern="[6-9][0-9]{9}"
+      >
+      <button type="button" class="sura-verify__action" data-action="request">Send code</button>
+    </div>
+  </div>
+
+  <div class="sura-verify__field" data-step="code" hidden>
+    <label class="sura-verify__label" for="sura-verify-code">Enter the code we sent you</label>
+    <div class="sura-verify__row">
+      <input
+        id="sura-verify-code"
+        class="sura-verify__input sura-verify__input--code"
+        type="text"
+        inputmode="numeric"
+        autocomplete="one-time-code"
+        maxlength="6"
+        pattern="[0-9]{6}"
+      >
+      <button type="button" class="sura-verify__action" data-action="verify">Verify</button>
+    </div>
+    <button type="button" class="sura-verify__resend" data-action="resend" disabled>Resend code</button>
+  </div>
+
+  <p class="sura-verify__message" role="status" aria-live="polite" data-role="message"></p>
+
+  <input type="hidden" data-role="token">
+</sura-phone-verify>
